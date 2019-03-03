@@ -1,33 +1,24 @@
-﻿// Window.cpp : Определяет точку входа для приложения.
-
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "Window.h"
 
-typedef int(*CYScreen)(void);
+typedef int(*CYScreen)(void);					//Тип функции определение высоты экрана
+typedef bool(*CheckSSE3)(void);					//Тип функции проверка SSE3
 
-// Глобальные переменные:
-HINSTANCE hInst;                                // текущий экземпляр
-HWND Edit1, Edit2;
+HINSTANCE hInst;                                //Текущий экземпляр
+HWND Edit1, Edit2;								//Textboxs 
 
-// Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
                      _In_ int       nCmdShow)
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
-
-    MyRegisterClass(hInstance);
-
-    // Выполнить инициализацию приложения:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
+    MyRegisterClass(hInstance);							// Создание класса
+    if (!InitInstance (hInstance, nCmdShow))		    // Выполнить инициализацию приложения:
+    {													// (Создает окно)
         return FALSE;
     }
 
@@ -87,7 +78,37 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
+void threadfunction(HWND hWnd)
+{
+	auto hinstLib = LoadLibrary(TEXT("SGT.dll"));		//Загружает библиотеку
+	if (hinstLib)										//Проверка на наличие библиотеки
+	{
+		CYScreen cyscreen = (CYScreen)GetProcAddress(hinstLib, "CYScreen");	//Обращение кк функции из библиотеки
+		if (cyscreen)														//Проверка на наличие такой функции
+		{
+			WCHAR t[255];
+			int x = cyscreen();												//Выполнение функции
+			wsprintf(t, L"Основное задание:\r\n\r\n\r\n\"Определить высоту экрана(в пикселях)\"\r\n\r\nВысота экрана:  %d", x);
+			SendMessage(Edit1, EM_REPLACESEL, TRUE, (LPARAM)t);				//Изменение бокса
+		}
+		else
+			MessageBox(hWnd, L"Не удалось найти функцию определения размера экрана", 0, MB_OK);
 
+		CheckSSE3 sse3 = (CheckSSE3)GetProcAddress(hinstLib, "CheckSSE3");
+		if (sse3)
+		{
+			WCHAR t[255];
+			bool x = sse3();
+			wsprintf(t, L"Дополнительное задание:\r\n\r\n\"Определить наличие поддержки технологии SSE3\"\r\n\r\nПоддержка SSE3:  %s", x ? L"true" : L"false");
+			SendMessage(Edit2, EM_REPLACESEL, TRUE, (LPARAM)t);
+		}
+		else
+			MessageBox(hWnd, L"Не удалось найти функцию проверка SSE3", 0, MB_OK);
+	}
+	else
+		MessageBox(hWnd, L"Ошибка открытия DLL", 0, MB_OK);
+	FreeLibrary(hinstLib);
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -96,33 +117,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch (wParam)
 		{
-		case 1:
+		case 1:			//Кнопка выполнить
 		{
-			auto hinstLib = LoadLibrary(TEXT("SGT.dll"));
-			if (hinstLib)
-			{
-				CYScreen cyscreen = (CYScreen)GetProcAddress(hinstLib, "CYScreen");
-				if (cyscreen)
-				{
-					WCHAR t[255];
-					int x = cyscreen();
-					wsprintf(t, L"Основное задание:\r\n\r\n\r\n\"Определить высоту экрана(в пикселях)\"\r\n\r\nВысота экрана:  %d", x);
-					SendMessage(Edit1, EM_REPLACESEL, TRUE, (LPARAM)t);
-
-
-					wsprintf(t, L"Дополнительное задание:\r\n\r\n\"Определить наличие поддержки технологии SSE3\"\r\n\r\nВысота экрана:  %d", x);
-					SendMessage(Edit2, EM_REPLACESEL, TRUE, (LPARAM)t);
-				}
-				else
-					MessageBox(hWnd, L"Не удалось найти функцию", 0, MB_OK);
-
-			}
-			else
-				MessageBox(hWnd, L"Ошибка открытия DLL", 0, MB_OK);
-			FreeLibrary(hinstLib);
+			thread t(threadfunction, hWnd);//Создает поток
+			t.detach();				//Отцепляет поток
 		}
 			break;
-		case 2:
+		case 2:			//Закрытие по кнопку
 			DestroyWindow(hWnd);
 			break;
 		default:
@@ -130,7 +131,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	case WM_CREATE:
-	{
+	{		//Создание кнопок и тектовых полей
 		HWND hwndButton = CreateWindow(L"BUTTON",L"Запуск", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
 			10,225,100,25,hWnd,(HMENU)1,hInst, NULL);
 		HWND hwndButton1 = CreateWindow(L"BUTTON", L"Закрыть", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,

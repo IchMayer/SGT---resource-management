@@ -17,5 +17,9 @@
 #include <memory.h>
 #include <tchar.h>
 
+#include <Thread>
+#include <iostream>
+
+using namespace std;
 
 // установите здесь ссылки на дополнительные заголовки, требующиеся для программы
